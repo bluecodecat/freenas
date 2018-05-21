@@ -1556,25 +1556,65 @@ require([
     cloudCredentialsProvider = function() {
 
         var provider = registry.byId("id_provider").get('value');
+        var credentialsSchemas = JSON.parse(registry.byId("id_credentials_schemas").get('value'));
 
-        var PROVIDER_MAP = {
-          'AMAZON': ['access_key', 'secret_key', 'endpoint'],
-          'AZURE': ['account_name', 'account_key'],
-          'BACKBLAZE': ['account_id', 'app_key'],
-          'GCLOUD': ['keyfile']
+        var attributesInput = dom.byId("id_attributes");
+        var attributes = JSON.parse(attributesInput.value) || {};
+
+        var updateAttributes = function() {
+            var attributes = {};
+            for (var i = 0; i < credentialsSchemas[provider].length; i++)
+            {
+                var property = credentialsSchemas[provider][credentialsSchemas[provider].length - 1 - i];
+
+                var id = "id_attributes_" + property.property;
+                attributes[property.property] = document.getElementById(id).value;
+            }
+
+            attributesInput.value = JSON.stringify(attributes);
         };
 
-        for(var k in PROVIDER_MAP) {
-          for(var i=0;i<PROVIDER_MAP[k].length;i++) {
-            var tr = query(dom.byId("id_" + k + "_" + PROVIDER_MAP[k][i])).closest("tr")[0];
-            if(provider == k) {
-              domStyle.set(tr, "display", "table-row");
-            } else {
-              domStyle.set(tr, "display", "none");
+        while (true)
+        {
+            var old = document.getElementsByClassName("cloud-credentials-attribute");
+            if (!old.length)
+            {
+                break;
             }
-          }
+            old[0].parentNode.removeChild(old[0]);
         }
 
+        for (var i = 0; i < credentialsSchemas[provider].length; i++)
+        {
+            var property = credentialsSchemas[provider][credentialsSchemas[provider].length - 1 - i];
+
+            var id = "id_attributes_" + property.property;
+            var input = "<input type='text' id='" + id + "'>";
+            if (property.schema.enum)
+            {
+                input = "<select id='" + id + "'>";
+                for (var i = 0; i < property.schema.enum.length; i++)
+                {
+                    input += '<option>' + property.schema.enum[i] + '</option>';
+                }
+                input += '</select>';
+            }
+
+            var newNode = document.createElement("tr");
+            newNode.className = "cloud-credentials-attribute";
+            newNode.innerHTML = "<th>" + property.schema.title + "</th><td>" + input + "</td>";
+
+            attributesInput.parentNode.insertBefore(newNode, attributesInput.nextSibling);
+
+            if (attributes[property.property])
+            {
+                document.getElementById(id).value = attributes[property.property];
+            }
+
+            document.getElementById(id).onchange = updateAttributes;
+        }
+
+        updateAttributes();
     }
 
     cloudSyncEncryptionToggle = function() {
